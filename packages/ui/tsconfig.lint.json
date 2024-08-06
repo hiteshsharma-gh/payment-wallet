@@ -1,17 +1,12 @@
 {
   "extends": "@repo/typescript-config/react-library.json",
   "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "./src",
-    "baseUrl": ".",
-    "paths": {
-      "@repo/ui/utils": [
-        "src/lib/utils.ts"
-      ]
-    }
+    "outDir": "dist"
   },
   "include": [
-    "src"
+    "src",
+    "turbo",
+    "tailwind.config.js"
   ],
   "exclude": [
     "node_modules",
