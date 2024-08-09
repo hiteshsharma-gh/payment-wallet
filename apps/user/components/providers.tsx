@@ -2,7 +2,9 @@
 import { RecoilRoot } from "recoil";
 
 export const Providers = ({ children }: { children: React.ReactNode }) => {
-  return <RecoilRoot>
-    {children}
-  </RecoilRoot>
+  return (
+    <RecoilRoot>
+      {children}
+    </RecoilRoot>
+  )
 }
