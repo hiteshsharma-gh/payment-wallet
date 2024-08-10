@@ -13,8 +13,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id    String @unique @default(uuid())
-  name  String
-  email String @unique
+model Account {
+  id        String      @unique @default(uuid())
+  name      String?
+  email     String      @unique
+  password  String?
+  verified  Boolean     @default(false)
+  auth_type AuthType
+  type      AccountType
+}
+
+enum AccountType {
+  User
+  Merchant
+}
+
+enum AuthType {
+  Credentials
+  Google
 }
