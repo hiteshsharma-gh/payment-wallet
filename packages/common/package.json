@@ -2,7 +2,10 @@
   "name": "@repo/common",
   "version": "1.0.0",
   "exports": {
-    "./lib": "./lib/*"
+    ".": "./*",
+    "./lib": "./lib/index.ts",
+    "./zodSchema": "./zodSchema/*",
+    ".zodTypes": "./zodTypes/*"
   },
   "dependencies": {
     "@repo/db": "workspace:*",

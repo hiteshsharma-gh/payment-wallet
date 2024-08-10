@@ -1,29 +1,19 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials"
-import { z } from "zod";
 import prisma from "@repo/db"
 import bcrypt from "bcrypt"
+import { credentialsSchema } from "../zodSchema/authSchema";
 
-export const credentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8, "password should be more than 8 characters").max(20, "password should be less than 20 characters"),
-  type: z.enum(["User", "Merchant"])
-})
-
-export type Credentials = z.infer<typeof credentialsSchema>
-
-const saltRounds = process.env.SALT_ROUNDS
-
-export const authOption: NextAuthOptions = {
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
         email: { label: "email", type: "text", placeholder: "johndoe@example.com" },
         password: { label: "password", type: "password", placeholder: "password" },
-        type: { label: "type", type: "text", placeholder: "User or Merchant" }
+        type: { label: "type", type: "select", placeholder: "User or Merchant" }
       },
-      async authorize(credentials: Credentials | undefined) {
+      async authorize(credentials: Record<"email" | "password" | "type", string> | undefined) {
         if (!credentials?.email || !credentials?.password || !credentials?.type) return null;
 
         const parsedData = credentialsSchema.safeParse(credentials);
@@ -45,10 +35,15 @@ export const authOption: NextAuthOptions = {
         }
 
         try {
-          const hashedPassword = await bcrypt.hash(password, Number(saltRounds));
+          const hashedPassword = await bcrypt.hash(password, process.env.SALT_ROUNDS ?? 10)
 
-          const user = await prisma.user.create({
-            data: { email, password: hashedPassword },
+          const user = await prisma.account.create({
+            data: {
+              email,
+              password: hashedPassword,
+              type,
+              auth_type: "Credentials"
+            },
           });
 
           return user;
