@@ -21,6 +21,16 @@ model Account {
   verified  Boolean     @default(false)
   auth_type AuthType
   type      AccountType
+  Token     Token[]
+}
+
+model Token {
+  id                    String  @unique @default(uuid())
+  access_token          String
+  refresh_token         String
+  refresh_token_version Int     @default(0)
+  accountId             String
+  account               Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 }
 
 enum AccountType {

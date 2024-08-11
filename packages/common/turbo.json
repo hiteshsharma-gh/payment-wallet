@@ -1,0 +1,9 @@
+{
+  "tasks": {
+    "build": {
+      "env": [
+        "SALT_ROUNDS"
+      ]
+    }
+  }
+}

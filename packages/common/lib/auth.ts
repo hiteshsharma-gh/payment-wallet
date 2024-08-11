@@ -1,58 +1,79 @@
-import { NextAuthOptions } from "next-auth";
+import { NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import prisma from "@repo/db"
 import bcrypt from "bcrypt"
-import { credentialsSchema } from "../zodSchema/authSchema";
+import { credentialsSchema } from "../zodSchema/authSchema"
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
-      name: 'Credentials',
+      name: "Credentials",
       credentials: {
-        email: { label: "email", type: "text", placeholder: "johndoe@example.com" },
-        password: { label: "password", type: "password", placeholder: "password" },
-        type: { label: "type", type: "select", placeholder: "User or Merchant" }
+        email: {
+          label: "email",
+          type: "text",
+          placeholder: "johndoe@example.com",
+        },
+        password: {
+          label: "password",
+          type: "password",
+          placeholder: "password",
+        },
+        type: {
+          label: "type",
+          type: "select",
+          placeholder: "User or Merchant",
+        },
       },
-      async authorize(credentials: Record<"email" | "password" | "type", string> | undefined) {
-        if (!credentials?.email || !credentials?.password || !credentials?.type) return null;
+      async authorize(
+        credentials: Record<"email" | "password" | "type", string> | undefined,
+      ) {
+        if (!credentials?.email || !credentials?.password || !credentials?.type)
+          return null
 
-        const parsedData = credentialsSchema.safeParse(credentials);
+        const parsedData = credentialsSchema.safeParse(credentials)
         if (!parsedData.success) return null
 
-        const { email, password, type } = parsedData.data;
+        const { email, password, type } = parsedData.data
 
         const existingAccount = await prisma.account.findUnique({
           where: { email },
-        });
+        })
 
         if (existingAccount?.auth_type != "Credentials") return null
 
         if (existingAccount) {
-          const validPassword = await bcrypt.compare(password, String(existingAccount.password));
-          if (validPassword) return existingAccount;
+          const validPassword = await bcrypt.compare(
+            password,
+            String(existingAccount.password),
+          )
+          if (validPassword) return existingAccount
 
-          return null;
+          return null
         }
 
         try {
-          const hashedPassword = await bcrypt.hash(password, process.env.SALT_ROUNDS ?? 10)
+          const hashedPassword = await bcrypt.hash(
+            password,
+            process.env.SALT_ROUNDS ?? 10,
+          )
 
           const user = await prisma.account.create({
             data: {
               email,
               password: hashedPassword,
               type,
-              auth_type: "Credentials"
+              auth_type: "Credentials",
             },
-          });
+          })
 
-          return user;
+          return user
         } catch (error) {
-          console.error('Error creating user:', error);
+          console.error("Error creating user:", error)
 
           return null
         }
-      }
-    })
-  ]
+      },
+    }),
+  ],
 }
