@@ -1,8 +1,9 @@
-import { NextAuthOptions } from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import prisma from "@repo/db"
-import bcrypt from "bcrypt"
-import { credentialsSchema } from "../zodSchema/authSchema"
+import { Account, NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import prisma from "@repo/db";
+import bcrypt from "bcrypt";
+import { credentialsSchema } from "../zodSchema/authSchema";
+import { JWT } from "next-auth/jwt";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -29,34 +30,34 @@ export const authOptions: NextAuthOptions = {
         credentials: Record<"email" | "password" | "type", string> | undefined,
       ) {
         if (!credentials?.email || !credentials?.password || !credentials?.type)
-          return null
+          return null;
 
-        const parsedData = credentialsSchema.safeParse(credentials)
-        if (!parsedData.success) return null
+        const parsedData = credentialsSchema.safeParse(credentials);
+        if (!parsedData.success) return null;
 
-        const { email, password, type } = parsedData.data
+        const { email, password, type } = parsedData.data;
 
         const existingAccount = await prisma.account.findUnique({
           where: { email },
-        })
+        });
 
-        if (existingAccount?.auth_type != "Credentials") return null
+        if (existingAccount?.auth_type != "Credentials") return null;
 
         if (existingAccount) {
           const validPassword = await bcrypt.compare(
             password,
             String(existingAccount.password),
-          )
-          if (validPassword) return existingAccount
+          );
+          if (validPassword) return existingAccount;
 
-          return null
+          return null;
         }
 
         try {
           const hashedPassword = await bcrypt.hash(
             password,
             process.env.SALT_ROUNDS ?? 10,
-          )
+          );
 
           const user = await prisma.account.create({
             data: {
@@ -65,15 +66,29 @@ export const authOptions: NextAuthOptions = {
               type,
               auth_type: "Credentials",
             },
-          })
+          });
 
-          return user
+          return user;
         } catch (error) {
-          console.error("Error creating user:", error)
+          console.error("Error creating user:", error);
 
-          return null
+          return null;
         }
       },
     }),
   ],
-}
+  secret: process.env.JWT_SECRET || "secret",
+  callbacks: {
+    async jwt({ token, account }: { token: JWT, account: Account | null }) {
+
+
+      return token
+    },
+    async session({ token, session }: any) {
+      console.log(token, session)
+      session.user.id = token.sub
+
+      return session
+    }
+  }
+};

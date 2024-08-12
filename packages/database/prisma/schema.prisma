@@ -1,44 +1,93 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-model Account {
-  id        String      @unique @default(uuid())
-  name      String?
-  email     String      @unique
-  password  String?
-  verified  Boolean     @default(false)
-  auth_type AuthType
-  type      AccountType
-  Token     Token[]
+generator client {
+  provider = "prisma-client-js"
 }
 
-model Token {
-  id                    String  @unique @default(uuid())
-  access_token          String
-  refresh_token         String
-  refresh_token_version Int     @default(0)
-  accountId             String
-  account               Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  name           String?
+  hashedPassword String?
+  googleId       String?        @unique
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  verified       Boolean        @default(false)
+  role           UserRole       @default(USER)
+  refreshTokens  RefreshToken[]
+  accessTokens   AccessToken[]
+  transactions   Transaction[]  @relation("UserTransactions")
 }
 
-enum AccountType {
-  User
-  Merchant
+model Merchant {
+  id             String         @id @default(uuid())
+  name           String
+  email          String         @unique
+  hashedPassword String
+  businessType   String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  isActive       Boolean        @default(true)
+  refreshTokens  RefreshToken[]
+  accessTokens   AccessToken[]
+  transactions   Transaction[]  @relation("MerchantTransactions")
 }
 
-enum AuthType {
-  Credentials
-  Google
+model RefreshToken {
+  id         String    @id @default(uuid())
+  token      String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  userId     String?
+  merchantId String?
+  user       User?     @relation(fields: [userId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+
+  @@index([userId])
+  @@index([merchantId])
+}
+
+model AccessToken {
+  id         String    @id @default(uuid())
+  token      String    @unique
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  userId     String?
+  merchantId String?
+  user       User?     @relation(fields: [userId], references: [id])
+  merchant   Merchant? @relation(fields: [merchantId], references: [id])
+
+  @@index([userId])
+  @@index([merchantId])
+}
+
+model Transaction {
+  id         String            @id @default(uuid())
+  amount     Decimal
+  currency   String
+  status     TransactionStatus
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  userId     String
+  merchantId String
+  user       User              @relation("UserTransactions", fields: [userId], references: [id])
+  merchant   Merchant          @relation("MerchantTransactions", fields: [merchantId], references: [id])
+
+  @@index([userId])
+  @@index([merchantId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
 }

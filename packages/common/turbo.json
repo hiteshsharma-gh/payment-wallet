@@ -1,9 +1,7 @@
 {
   "tasks": {
     "build": {
-      "env": [
-        "SALT_ROUNDS"
-      ]
+      "env": ["SALT_ROUNDS", "JWT_SECRET"]
     }
   }
 }
