@@ -7,22 +7,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Account {
+  id       String      @id @default(uuid())
+  email    String      @unique
+  password String?
+  authType AuthType
+  verified Boolean     @default(false)
+  type     AccountType
+  token    Token?
+  user     User?
+  merchant Merchant?
+}
+
 model User {
-  id       Int     @id @default(autoincrement())
-  email    String? @unique
-  name     String?
-  number   String  @unique
-  password String
+  id        String  @id @default(uuid())
+  name      String?
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId String  @unique
 }
 
 model Merchant {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String?
-  auth_type AuthType
+  id              String  @id @default(uuid())
+  name            String?
+  account         Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId       String  @unique
+  businessName    String
+  businessAddress String?
+}
+
+model Token {
+  id           String   @id @default(uuid())
+  sessionToken String
+  refreshToken String
+  expiresAt    DateTime
+  version      Int      @default(0)
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accountId    String   @unique
 }
 
 enum AuthType {
   Google
-  Github
+  Email
+}
+
+enum AccountType {
+  User
+  Merchant
 }
