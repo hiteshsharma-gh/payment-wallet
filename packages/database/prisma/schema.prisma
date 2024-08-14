@@ -31,7 +31,7 @@ model Merchant {
   name            String?
   account         Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   accountId       String  @unique
-  businessName    String
+  businessName    String?
   businessAddress String?
 }
 

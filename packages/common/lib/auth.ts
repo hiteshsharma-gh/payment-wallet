@@ -5,6 +5,7 @@ import prisma from "@repo/db";
 import bcrypt from "bcrypt";
 import { credentialsSchema } from "../zodSchema/authSchema";
 import { JWT } from "next-auth/jwt";
+import jwt from "jsonwebtoken"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -31,6 +32,8 @@ export const authOptions: NextAuthOptions = {
         credentials: Record<"email" | "password" | "type", string> | undefined,
       ) {
         try {
+          if (!process.env.SALT_ROUNDS || !process.env.JWT_SECRET) return null
+
           if (!credentials?.email || !credentials?.password || !credentials?.type) return null;
 
           const parsedData = credentialsSchema.safeParse(credentials);
@@ -40,6 +43,11 @@ export const authOptions: NextAuthOptions = {
 
           const existingAccount = await prisma.account.findUnique({
             where: { email },
+            include: {
+              token: true,
+              user: true,
+              merchant: true
+            }
           });
 
           if (existingAccount) {
@@ -49,9 +57,43 @@ export const authOptions: NextAuthOptions = {
           if (existingAccount) {
             const validPassword = await bcrypt.compare(
               password,
-              String(existingAccount.password),
+              existingAccount.password?.toString() || "",
             );
-            if (validPassword) return existingAccount;
+
+            if (validPassword) {
+              const payload = {
+                id: existingAccount.id,
+                email: existingAccount.email,
+                authType: existingAccount.authType,
+                type: existingAccount.type,
+                verified: existingAccount.verified,
+                user: existingAccount.user
+              };
+
+              const sessionToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+              const refreshToken = jwt.sign(payload, process.env.JWT_SECRET + existingAccount.token?.version, { expiresIn: '30d' });
+
+              const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // expires in 30 days
+
+              const updatedAccount = await prisma.token.upsert({
+                where: {
+                  accountId: existingAccount.id,
+                },
+                update: {
+                  sessionToken,
+                  refreshToken,
+                  expiresAt,
+                },
+                create: {
+                  sessionToken,
+                  refreshToken,
+                  expiresAt,
+                  accountId: existingAccount.id,
+                },
+              });
+
+              return updatedAccount
+            }
 
             return null;
           }
@@ -59,7 +101,7 @@ export const authOptions: NextAuthOptions = {
           const saltRounds = parseInt(process.env.SALT_ROUNDS || '10', 10)
           const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-          const user = await prisma.account.create({
+          const account = await prisma.account.create({
             data: {
               email,
               password: hashedPassword,
@@ -68,7 +110,23 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          return user;
+          if (account.type === "User") {
+            await prisma.user.create({
+              data: {
+                accountId: account.id
+              }
+            })
+          }
+
+          if (account.type === "Merchant") {
+            await prisma.merchant.create({
+              data: {
+                accountId: account.id
+              }
+            })
+          }
+
+          return account;
         } catch (error) {
           console.error("Error creating user:", error);
 
