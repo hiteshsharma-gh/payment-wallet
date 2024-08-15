@@ -1,4 +1,4 @@
-import { Account, NextAuthOptions } from "next-auth";
+import { Account, NextAuthOptions, Profile } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google"
 import prisma from "@repo/db";
@@ -42,11 +42,13 @@ export const authOptions: NextAuthOptions = {
           const { email, password, type } = parsedData.data;
 
           const existingAccount = await prisma.account.findUnique({
-            where: { email },
+            where: {
+              email,
+              type: "User"
+            },
             include: {
               token: true,
               user: true,
-              merchant: true
             }
           });
 
@@ -110,21 +112,11 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          if (account.type === "User") {
-            await prisma.user.create({
-              data: {
-                accountId: account.id
-              }
-            })
-          }
-
-          if (account.type === "Merchant") {
-            await prisma.merchant.create({
-              data: {
-                accountId: account.id
-              }
-            })
-          }
+          await prisma.user.create({
+            data: {
+              accountId: account.id
+            }
+          })
 
           return account;
         } catch (error) {
@@ -141,18 +133,19 @@ export const authOptions: NextAuthOptions = {
   ],
   secret: process.env.JWT_SECRET || "",
   callbacks: {
-    async signIn(params: any) {
-      console.log(params)
+    async signIn({ account, profile, credentials }) {
+      console.log(account, profile, credentials)
+      if (account && profile) {
+
+      }
 
       return true
     },
     async jwt({ token, account }: { token: JWT, account: Account | null }) {
-      console.log(token, account)
 
       return token
     },
     async session({ token, session }: any) {
-      console.log(token, session)
       session.user.id = token.sub
 
       return session
