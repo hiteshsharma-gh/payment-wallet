@@ -43,12 +43,12 @@ export const authOptions: NextAuthOptions = {
 
           const existingAccount = await prisma.account.findUnique({
             where: {
-              email,
-              type: "User"
+              email
             },
             include: {
               token: true,
               user: true,
+              merchant: true
             }
           });
 
@@ -108,15 +108,52 @@ export const authOptions: NextAuthOptions = {
               email,
               password: hashedPassword,
               type,
-              authType: "Email"
+              authType: "Email",
             },
+            include: {
+              user: true,
+              merchant: true
+            }
           });
 
-          await prisma.user.create({
+          const payload = {
+            id: account.id,
+            email: account.email,
+            authType: account.authType,
+            type: account.type,
+            verified: account.verified,
+            user: account.user
+          };
+
+          const sessionToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+          const refreshToken = jwt.sign(payload, process.env.JWT_SECRET + 0, { expiresIn: '30d' });
+
+          const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30); // expires in 30 days
+
+          await prisma.token.create({
             data: {
+              sessionToken,
+              refreshToken,
+              expiresAt,
               accountId: account.id
             }
           })
+
+          if (account.type === "User") {
+            await prisma.user.create({
+              data: {
+                accountId: account.id
+              }
+            })
+          }
+
+          if (account.type === "Merchant") {
+            await prisma.merchant.create({
+              data: {
+                accountId: account.id
+              }
+            })
+          }
 
           return account;
         } catch (error) {
@@ -133,10 +170,13 @@ export const authOptions: NextAuthOptions = {
   ],
   secret: process.env.JWT_SECRET || "",
   callbacks: {
-    async signIn({ account, profile, credentials }) {
-      console.log(account, profile, credentials)
-      if (account && profile) {
+    async signIn({ user, account, profile, credentials }) {
+      console.log(user, account, profile, credentials)
+      if (account) {
+        if (account.provider === 'google') {
+          if (!user.email) return false
 
+        }
       }
 
       return true
